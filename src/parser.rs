@@ -1,4 +1,4 @@
-use std::str::Chars;
+use std::{str::Chars, vec};
 
 use crate::compiler::*;
 
@@ -6,13 +6,23 @@ pub fn to_expression(input: String) -> Option<Expression> {
     if smart_contain(input.clone(), '(') {
         let pos = input.find('(').unwrap();
         let name = input[0..pos].to_string();
-        let args = smart_split(input[pos + 1..input.len() - 1].to_string(), ',')
-            .iter()
-            .map(|x| to_expression(x.clone()))
-            .collect::<Option<Vec<Expression>>>();
-        if let Some(args) = args {
-            return Some(Expression::CALL(name, args));
+        let mut split = smart_split(input[pos + 1..].to_string(), ',').into_iter();
+        let mut args = vec![];
+        while let Some(n) = split.next() {
+            let mut n = n.trim().to_string();
+            if n.len() == 0 {
+                continue;
+            }
+            if n.starts_with("+") || n.starts_with("-") || n.starts_with("*") || n.starts_with("/")
+                || n.starts_with(">") || n.starts_with("==")
+            {
+                n.push_str(&split.next().unwrap());
+                args.push(to_expression(n).unwrap());
+            } else {
+                args.push(to_expression(n).unwrap());
+            }
         }
+        return Some(Expression::CALL(name, args));
     } else if input.starts_with("+") {
         let split = smart_split(input[1..].to_string(), ',');
         if split.len() == 2 {
@@ -222,6 +232,33 @@ pub fn parse_block(b: Vec<Block>) -> Vec<Instruction> {
                     let s = s[5..].to_string();
                     instructions.push(Instruction::PRINT {
                         value: to_expression(s).unwrap(),
+                    });
+                } else if s.starts_with("return") {
+                    let s = s[6..].to_string();
+                    instructions.push(Instruction::RETURN {
+                        value: to_expression(s).unwrap(),
+                    });
+                } else if s.starts_with("def") {
+                    let data = smart_split(s[3..].to_string(), '(');
+                    if data.len() == 2 {
+                        let name = data[0].clone();
+                        let args = smart_split(data[1].clone(), ',');
+                        let args = args
+                            .iter()
+                            .map(|x| x.clone())
+                            .filter(|x| x.len() > 0)
+                            .collect::<Vec<String>>();
+                        let instructions2 = parse_block(b.next().unwrap().into_vec().unwrap());
+                        instructions.push(Instruction::FUNCTION {
+                            name,
+                            args,
+                            instruction: instructions2,
+                        })
+                    }
+                } else if s.starts_with("drop") {
+                    let s = s[4..].to_string();
+                    instructions.push(Instruction::DROP {
+                        name: s,
                     });
                 } else if s.starts_with("let") {
                     let data = smart_split(s[3..].to_string(), '=');

@@ -80,6 +80,10 @@ fn main() {
             println!("reset: reset the program");
             println!("get <history>: get a program from history");
             println!("list: list history");
+            println!("save: save history to hs.txt");
+            println!("load: load history from hs.txt");
+            println!("execute: execute hs.txt");
+            println!("phelp: print program help message");
             println!("help: print this message");
             continue;
         }
@@ -127,6 +131,15 @@ fn main() {
                 println!("|-> {}", s);
                 lang.continues(s.clone());
             }
+            continue;
+        }
+        if s == "phelp" {
+            println!("print <value>: print a value");
+            println!("let <name> = <value>: create a variable");
+            println!("<name> = <value>: set var to values");
+            println!("if <condition> {{<code>}}: if condition is true, execute code");
+            println!("while <condition> {{<code>}}: while condition is true, execute code");
+            println!("def <name> (<args>) {{<code>}}: create a function");
             continue;
         }
         if !s.ends_with(";") {

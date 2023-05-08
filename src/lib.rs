@@ -6,6 +6,7 @@ pub mod interpreter;
 pub mod parser;
 pub mod timer;
 
+#[derive(Debug, Clone)]
 pub struct Lang {
     pub compiler: compiler::Compiler,
     pub interpreter: interpreter::Interpreter,

@@ -96,6 +96,7 @@ pub enum Operation {
     DROP { name: DATA },
 }
 
+#[derive(Debug, Clone)]
 pub struct Interpreter {
     pub data: HashMap<i32, DATA>,
     pub points: HashMap<i32, usize>,

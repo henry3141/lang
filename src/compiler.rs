@@ -257,9 +257,14 @@ impl Expression {
                 }]
             }
             Expression::Variable(v) => {
+                let addr2 = compiler.vars.get(v).unwrap_or_else(|| {
+                    println!("var not defined: {}", v);
+                    println!("{:?}", compiler.vars);
+                    std::process::exit(1);
+                });
                 vec![Operation::SET {
                     name: DATA::Number(addr),
-                    value: DATA::POINTER(compiler.vars[v]),
+                    value: DATA::POINTER(addr2.clone()),
                 }]
             }
             Expression::Add(a, b) => {
@@ -325,7 +330,7 @@ impl Expression {
                     value: DATA::Number(addr),
                 }];
                 for (i, arg) in args.iter().zip(func.args.iter()) {
-                    let arg_addr = compiler.new_var(arg.to_string());
+                    let arg_addr = compiler.vars[arg];
                     let mut arg_ops = i.to_addr(arg_addr, compiler);
                     ops.append(&mut arg_ops);
                 }
@@ -346,6 +351,7 @@ pub struct FUNCTION {
     pub addr: i32,
 }
 
+#[derive(Debug, Clone)]
 pub struct Compiler {
     pub instructions: Vec<Instruction>,
     pub program: Vec<Operation>,
@@ -409,6 +415,7 @@ impl Compiler {
                 args,
                 mut instruction,
             } => {
+                let mut of = Vec::new();
                 let add = self.new_addr();
                 let func = FUNCTION {
                     name: name.clone(),
@@ -417,7 +424,9 @@ impl Compiler {
                         .iter()
                         .map(|x| {
                             let mut x = x.clone();
+                            of.push(x.clone());
                             x.push_str(&add.to_string());
+                            self.new_var(x.clone());
                             x
                         })
                         .collect(),
@@ -428,12 +437,12 @@ impl Compiler {
                 let mut ops = vec![Operation::POINT {
                     name: DATA::Number(func.addr),
                 }];
-                let last = instruction.pop().unwrap();
-                let mut of = Vec::new();
+                let last = instruction.pop().unwrap_or(Instruction::EXIT);
                 for i in instruction {
                     let mut iops = self.compile_instruction(i.change_name(add, &mut of));
                     ops.append(&mut iops);
                 }
+                let last = last.change_name(add, &mut of);
                 match last {
                     Instruction::RETURN { value } => {
                         let addr = self.new_addr();
@@ -442,11 +451,16 @@ impl Compiler {
                             name: DATA::POINTER(func.return_addr),
                             value: DATA::POINTER(addr),
                         });
+                        ops.extend(iops);
                     }
-                    _ => ops.extend(self.compile_instruction(last.change_name(add, &mut of))),
+                    _ => {
+                        let mut iops = self.compile_instruction(last);
+                        ops.append(&mut iops);
+                    }
                 };
                 ops.push(Operation::RET);
-                ops
+                self.fuctions_programms.extend(ops);
+                vec![]
             }
             Instruction::DROP { name } => {
                 let addr = self.vars[&name];
@@ -563,6 +577,10 @@ impl Compiler {
             let ops = self.compile_instruction(i);
             self.program.extend(ops);
         }
+        let end = self.new_addr();
+        self.program.push(Operation::JUMP { name: DATA::Number(end) });
+        self.program.extend(self.fuctions_programms.clone());
+        self.program.push(Operation::POINT { name: DATA::Number(end) });
         self.program.push(Operation::HALT);
     }
 }
